@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "816871958632",
+    "project_id": "ikezu-ishi-map",
+    "storage_bucket": "ikezu-ishi-map.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:816871958632:android:69452b4feec6aaa86bb3dd",
+        "android_client_info": {
+          "package_name": "com.piloshiki.ikezu_ishi_map"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "816871958632-vuhjsin8vo0op1cosj88fjm6i5ima6ij.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC9dydZn48P3n0fKXIfr_cLXsdW_Fp0izA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "816871958632-vuhjsin8vo0op1cosj88fjm6i5ima6ij.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
