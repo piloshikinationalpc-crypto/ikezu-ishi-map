@@ -19,6 +19,7 @@ class _MapScreenState extends State<MapScreen> {
   final Set<Marker> _markers = {};
   BitmapDescriptor? _stoneIcon;
   List<DocumentSnapshot> _latestDocs = [];
+  LatLng? _currentPosition;
   static const LatLng _defaultPosition = LatLng(35.6812, 139.7671);
 
   @override
@@ -64,9 +65,9 @@ class _MapScreenState extends State<MapScreen> {
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) { return; }
       final pos = await Geolocator.getCurrentPosition();
-      _mapController?.animateCamera(
-        CameraUpdate.newLatLng(LatLng(pos.latitude, pos.longitude)),
-      );
+      final target = LatLng(pos.latitude, pos.longitude);
+      setState(() => _currentPosition = target);
+      _mapController?.animateCamera(CameraUpdate.newLatLngZoom(target, 14));
     } catch (_) {}
   }
 
@@ -120,6 +121,9 @@ class _MapScreenState extends State<MapScreen> {
         myLocationButtonEnabled: true,
         onMapCreated: (controller) {
           _mapController = controller;
+          if (_currentPosition != null) {
+            controller.animateCamera(CameraUpdate.newLatLngZoom(_currentPosition!, 14));
+          }
           _onJumpTarget();
         },
       ),

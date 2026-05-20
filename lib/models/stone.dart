@@ -24,6 +24,7 @@ class Stone {
   final List<String> likedBy;
   final String? address;
   final String createdBy;
+  final bool isExisting;
 
   Stone({
     required this.id,
@@ -39,6 +40,7 @@ class Stone {
     this.likedBy = const [],
     this.address,
     required this.createdBy,
+    this.isExisting = true,
   });
 
   factory Stone.fromFirestore(DocumentSnapshot doc) {
@@ -57,6 +59,7 @@ class Stone {
       likedBy: List<String>.from(data['likedBy'] ?? []),
       address: data['address'],
       createdBy: data['createdBy'] ?? '',
+      isExisting: data['isExisting'] as bool? ?? true,
     );
   }
 
@@ -74,6 +77,7 @@ class Stone {
       'likedBy': likedBy,
       'address': address,
       'createdBy': createdBy,
+      'isExisting': isExisting,
     };
   }
 }

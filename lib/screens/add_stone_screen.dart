@@ -21,11 +21,16 @@ class AddStoneScreen extends StatefulWidget {
 class _AddStoneScreenState extends State<AddStoneScreen> {
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
+  GoogleMapController? _mapController;
   LatLng? _selectedLocation;
   File? _imageFile;
   bool _isLoading = false;
   String _selectedCategory = kStoneCategories.first;
   int _ikezuDegree = 1;
+  bool _isExisting = true;
+  final List<String> _extraCategories = [];
+
+  List<String> get _allCategories => [...kStoneCategories, ..._extraCategories];
 
   @override
   void initState() {
@@ -42,10 +47,42 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) { return; }
       final pos = await Geolocator.getCurrentPosition();
-      setState(() {
-        _selectedLocation = LatLng(pos.latitude, pos.longitude);
-      });
+      final target = LatLng(pos.latitude, pos.longitude);
+      setState(() => _selectedLocation = target);
+      _mapController?.animateCamera(CameraUpdate.newLatLngZoom(target, 16));
     } catch (_) {}
+  }
+
+  Future<void> _addCategory() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('カテゴリーを追加'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: 'カテゴリー名'),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('追加', style: TextStyle(color: Colors.brown)),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (result != null && result.isNotEmpty) {
+      setState(() {
+        _extraCategories.add(result);
+        _selectedCategory = result;
+      });
+    }
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -121,6 +158,7 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
         'likedBy': [],
         'address': address,
         'createdBy': AuthService.currentUid,
+        'isExisting': _isExisting,
       });
 
       if (mounted) Navigator.pop(context);
@@ -169,18 +207,27 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
-              children: kStoneCategories.map((cat) {
-                final selected = _selectedCategory == cat;
-                return ChoiceChip(
-                  label: Text(cat),
-                  selected: selected,
-                  selectedColor: Colors.brown,
-                  labelStyle: TextStyle(
-                    color: selected ? Colors.white : Colors.black87,
-                  ),
-                  onSelected: (_) => setState(() => _selectedCategory = cat),
-                );
-              }).toList(),
+              runSpacing: 4,
+              children: [
+                ..._allCategories.map((cat) {
+                  final selected = _selectedCategory == cat;
+                  return ChoiceChip(
+                    label: Text(cat),
+                    selected: selected,
+                    selectedColor: Colors.brown,
+                    labelStyle: TextStyle(
+                      color: selected ? Colors.white : Colors.black87,
+                    ),
+                    onSelected: (_) => setState(() => _selectedCategory = cat),
+                  );
+                }),
+                ActionChip(
+                  avatar: const Icon(Icons.add, size: 16, color: Colors.brown),
+                  label: const Text('追加'),
+                  side: const BorderSide(color: Colors.brown),
+                  onPressed: _addCategory,
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             const Text('いけず度', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -188,23 +235,82 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
             Row(
               children: List.generate(3, (i) {
                 final degree = i + 1;
+                final active = degree <= _ikezuDegree;
                 return GestureDetector(
                   onTap: () => setState(() => _ikezuDegree = degree),
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Text(
-                      '🪨',
-                      style: TextStyle(
-                        fontSize: 32,
-                        color: degree <= _ikezuDegree
-                            ? Colors.brown
-                            : Colors.grey[300],
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: active ? Colors.brown[100] : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: active ? Colors.brown : Colors.grey[300]!,
+                        width: 2,
                       ),
+                    ),
+                    child: Opacity(
+                      opacity: active ? 1.0 : 0.3,
+                      child: const Text('🪨', style: TextStyle(fontSize: 32)),
                     ),
                   ),
                 );
               }),
-              // ignore: dead_code
+            ),
+            const SizedBox(height: 16),
+            const Text('現存状況', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _isExisting = true),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: _isExisting ? Colors.green[100] : Colors.grey[100],
+                        borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
+                        border: Border.all(
+                          color: _isExisting ? Colors.green : Colors.grey[300]!,
+                          width: 2,
+                        ),
+                      ),
+                      child: Text(
+                        '✅ 現存する',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: _isExisting ? Colors.green[800] : Colors.grey,
+                          fontWeight: _isExisting ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _isExisting = false),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: !_isExisting ? Colors.red[100] : Colors.grey[100],
+                        borderRadius: const BorderRadius.horizontal(right: Radius.circular(8)),
+                        border: Border.all(
+                          color: !_isExisting ? Colors.red : Colors.grey[300]!,
+                          width: 2,
+                        ),
+                      ),
+                      child: Text(
+                        '❌ 現存しない',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: !_isExisting ? Colors.red[800] : Colors.grey,
+                          fontWeight: !_isExisting ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             const Text('場所 *', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -214,12 +320,22 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
               child: GoogleMap(
                 initialCameraPosition: CameraPosition(
                   target: _selectedLocation ?? const LatLng(35.6812, 139.7671),
-                  zoom: 15,
+                  zoom: 16,
                 ),
                 markers: _selectedLocation != null
                     ? {Marker(markerId: const MarkerId('sel'), position: _selectedLocation!)}
                     : {},
+                myLocationEnabled: true,
+                myLocationButtonEnabled: true,
                 onTap: (latLng) => setState(() => _selectedLocation = latLng),
+                onMapCreated: (controller) {
+                  _mapController = controller;
+                  if (_selectedLocation != null) {
+                    controller.animateCamera(
+                      CameraUpdate.newLatLngZoom(_selectedLocation!, 16),
+                    );
+                  }
+                },
               ),
             ),
             if (_selectedLocation != null)

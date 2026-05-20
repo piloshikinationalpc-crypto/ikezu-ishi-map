@@ -9,8 +9,10 @@ void main() async {
   final binding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: binding);
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await AuthService.signInAnonymously();
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await AuthService.signInAnonymously();
+  } catch (_) {}
 
   FlutterNativeSplash.remove();
   runApp(const MyApp());

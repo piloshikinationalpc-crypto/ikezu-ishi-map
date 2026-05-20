@@ -131,6 +131,27 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
                       style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
 
+                  // 現存状況
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _stone.isExisting ? Colors.green[50] : Colors.red[50],
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: _stone.isExisting ? Colors.green : Colors.red,
+                      ),
+                    ),
+                    child: Text(
+                      _stone.isExisting ? '✅ 現存する' : '❌ 現存しない',
+                      style: TextStyle(
+                        color: _stone.isExisting ? Colors.green[800] : Colors.red[800],
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+
                   // カテゴリー & いけず度
                   Row(
                     children: [
