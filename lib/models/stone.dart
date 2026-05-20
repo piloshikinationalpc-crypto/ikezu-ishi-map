@@ -16,7 +16,7 @@ class Stone {
   final String description;
   final double lat;
   final double lng;
-  final String? imageUrl;
+  final List<String> imageUrls;
   final DateTime createdAt;
   final String category;
   final int ikezuDegree;
@@ -26,13 +26,16 @@ class Stone {
   final String createdBy;
   final bool isExisting;
 
+  // 後方互換: 旧データの単一 imageUrl もサポート
+  String? get imageUrl => imageUrls.isNotEmpty ? imageUrls.first : null;
+
   Stone({
     required this.id,
     required this.title,
     required this.description,
     required this.lat,
     required this.lng,
-    this.imageUrl,
+    this.imageUrls = const [],
     required this.createdAt,
     required this.category,
     required this.ikezuDegree,
@@ -45,13 +48,19 @@ class Stone {
 
   factory Stone.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final oldUrl = data['imageUrl'] as String?;
+    final rawUrls = data['imageUrls'];
+    final imageUrls = rawUrls != null
+        ? List<String>.from(rawUrls as List)
+        : (oldUrl != null ? [oldUrl] : <String>[]);
+
     return Stone(
       id: doc.id,
       title: data['title'] ?? '',
       description: data['description'] ?? '',
       lat: (data['lat'] as num).toDouble(),
       lng: (data['lng'] as num).toDouble(),
-      imageUrl: data['imageUrl'],
+      imageUrls: imageUrls,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       category: data['category'] ?? 'その他',
       ikezuDegree: (data['ikezuDegree'] as num?)?.toInt() ?? 1,
@@ -69,7 +78,7 @@ class Stone {
       'description': description,
       'lat': lat,
       'lng': lng,
-      'imageUrl': imageUrl,
+      'imageUrls': imageUrls,
       'createdAt': Timestamp.fromDate(createdAt),
       'category': category,
       'ikezuDegree': ikezuDegree,

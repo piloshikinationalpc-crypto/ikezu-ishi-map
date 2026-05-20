@@ -3,54 +3,48 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:geocoding/geocoding.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/stone.dart';
-import '../services/auth_service.dart';
 
-class AddStoneScreen extends StatefulWidget {
-  const AddStoneScreen({super.key});
+class EditStoneScreen extends StatefulWidget {
+  final Stone stone;
+  const EditStoneScreen({super.key, required this.stone});
 
   @override
-  State<AddStoneScreen> createState() => _AddStoneScreenState();
+  State<EditStoneScreen> createState() => _EditStoneScreenState();
 }
 
-class _AddStoneScreenState extends State<AddStoneScreen> {
-  final _titleController = TextEditingController();
-  final _descController = TextEditingController();
-  GoogleMapController? _mapController;
-  LatLng? _selectedLocation;
-  final List<File> _imageFiles = [];
+class _EditStoneScreenState extends State<EditStoneScreen> {
+  late final TextEditingController _titleController;
+  late final TextEditingController _descController;
+  late LatLng _selectedLocation;
+  late List<String> _keptUrls;
+  final List<File> _newFiles = [];
   bool _isLoading = false;
-  String _selectedCategory = kStoneCategories.first;
-  int _ikezuDegree = 1;
-  bool _isExisting = true;
+  late String _selectedCategory;
+  late int _ikezuDegree;
+  late bool _isExisting;
   final List<String> _extraCategories = [];
 
-  List<String> get _allCategories => [...kStoneCategories, ..._extraCategories];
+  List<String> get _allCategories {
+    final base = [...kStoneCategories, ..._extraCategories];
+    if (!base.contains(_selectedCategory)) base.add(_selectedCategory);
+    return base;
+  }
 
   @override
   void initState() {
     super.initState();
-    _setCurrentLocation();
-  }
-
-  Future<void> _setCurrentLocation() async {
-    try {
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) { return; }
-      final pos = await Geolocator.getCurrentPosition();
-      final target = LatLng(pos.latitude, pos.longitude);
-      setState(() => _selectedLocation = target);
-      _mapController?.animateCamera(CameraUpdate.newLatLngZoom(target, 16));
-    } catch (_) {}
+    final s = widget.stone;
+    _titleController = TextEditingController(text: s.title);
+    _descController = TextEditingController(text: s.description);
+    _selectedLocation = LatLng(s.lat, s.lng);
+    _keptUrls = List.from(s.imageUrls);
+    _selectedCategory = s.category;
+    _ikezuDegree = s.ikezuDegree;
+    _isExisting = s.isExisting;
   }
 
   Future<void> _addCategory() async {
@@ -83,7 +77,7 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    if (_imageFiles.length >= 5) {
+    if (_keptUrls.length + _newFiles.length >= 5) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('写真は最大5枚まで登録できます')),
       );
@@ -92,7 +86,7 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: source);
     if (picked != null) {
-      setState(() => _imageFiles.add(File(picked.path)));
+      setState(() => _newFiles.add(File(picked.path)));
     }
   }
 
@@ -109,26 +103,10 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
     return result != null ? File(result.path) : null;
   }
 
-  Future<String?> _fetchAddress(LatLng location) async {
-    try {
-      final placemarks = await placemarkFromCoordinates(
-        location.latitude,
-        location.longitude,
-      );
-      if (placemarks.isNotEmpty) {
-        final p = placemarks.first;
-        return [p.administrativeArea, p.locality, p.subLocality, p.thoroughfare]
-            .where((s) => s != null && s.isNotEmpty)
-            .join('');
-      }
-    } catch (_) {}
-    return null;
-  }
-
   Future<void> _submit() async {
-    if (_titleController.text.isEmpty || _selectedLocation == null) {
+    if (_titleController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('タイトルと場所を入力してください')),
+        const SnackBar(content: Text('タイトルを入力してください')),
       );
       return;
     }
@@ -136,32 +114,28 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final imageUrls = <String>[];
-      for (final file in _imageFiles) {
+      final newUrls = <String>[];
+      for (final file in _newFiles) {
         final compressed = await _compressImage(file) ?? file;
         final ref = FirebaseStorage.instance
             .ref()
-            .child('stones/${DateTime.now().millisecondsSinceEpoch}_${imageUrls.length}.jpg');
+            .child('stones/${DateTime.now().millisecondsSinceEpoch}_${newUrls.length}.jpg');
         await ref.putFile(compressed);
-        imageUrls.add(await ref.getDownloadURL());
+        newUrls.add(await ref.getDownloadURL());
       }
 
-      final address = await _fetchAddress(_selectedLocation!);
-
-      await FirebaseFirestore.instance.collection('stones').add({
+      await FirebaseFirestore.instance
+          .collection('stones')
+          .doc(widget.stone.id)
+          .update({
         'title': _titleController.text,
         'description': _descController.text,
-        'lat': _selectedLocation!.latitude,
-        'lng': _selectedLocation!.longitude,
-        'imageUrls': imageUrls,
-        'createdAt': Timestamp.now(),
+        'lat': _selectedLocation.latitude,
+        'lng': _selectedLocation.longitude,
         'category': _selectedCategory,
         'ikezuDegree': _ikezuDegree,
-        'likeCount': 0,
-        'likedBy': [],
-        'address': address,
-        'createdBy': AuthService.currentUid,
         'isExisting': _isExisting,
+        'imageUrls': [..._keptUrls, ...newUrls],
       });
 
       if (mounted) Navigator.pop(context);
@@ -178,9 +152,11 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final totalPhotos = _keptUrls.length + _newFiles.length;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('いけず石を登録'),
+        title: const Text('いけず石を編集'),
         backgroundColor: Colors.brown,
         foregroundColor: Colors.white,
       ),
@@ -218,9 +194,7 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
                     label: Text(cat),
                     selected: selected,
                     selectedColor: Colors.brown,
-                    labelStyle: TextStyle(
-                      color: selected ? Colors.white : Colors.black87,
-                    ),
+                    labelStyle: TextStyle(color: selected ? Colors.white : Colors.black87),
                     onSelected: (_) => setState(() => _selectedCategory = cat),
                   );
                 }),
@@ -316,84 +290,102 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            const Text('場所 *', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('場所', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             SizedBox(
               height: 220,
               child: GoogleMap(
                 initialCameraPosition: CameraPosition(
-                  target: _selectedLocation ?? const LatLng(35.6812, 139.7671),
+                  target: _selectedLocation,
                   zoom: 16,
                 ),
-                markers: _selectedLocation != null
-                    ? {Marker(markerId: const MarkerId('sel'), position: _selectedLocation!)}
-                    : {},
+                markers: {
+                  Marker(markerId: const MarkerId('sel'), position: _selectedLocation),
+                },
                 myLocationEnabled: true,
                 myLocationButtonEnabled: true,
                 onTap: (latLng) => setState(() => _selectedLocation = latLng),
-                onMapCreated: (controller) {
-                  _mapController = controller;
-                  if (_selectedLocation != null) {
-                    controller.animateCamera(
-                      CameraUpdate.newLatLngZoom(_selectedLocation!, 16),
-                    );
-                  }
-                },
+                onMapCreated: (_) {},
               ),
             ),
-            if (_selectedLocation != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  '📍 ${_selectedLocation!.latitude.toStringAsFixed(5)}, ${_selectedLocation!.longitude.toStringAsFixed(5)}',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                ),
-              ),
             const SizedBox(height: 16),
             Row(
               children: [
                 const Text('写真', style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(width: 8),
-                Text('(最大5枚)', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                Text('($totalPhotos/5枚)', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
               ],
             ),
             const SizedBox(height: 8),
-            if (_imageFiles.isNotEmpty)
+            if (totalPhotos > 0)
               SizedBox(
                 height: 100,
-                child: ListView.builder(
+                child: ListView(
                   scrollDirection: Axis.horizontal,
-                  itemCount: _imageFiles.length,
-                  itemBuilder: (_, i) => Stack(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            _imageFiles[i],
-                            width: 100,
-                            height: 100,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        top: 4,
-                        right: 12,
-                        child: GestureDetector(
-                          onTap: () => setState(() => _imageFiles.removeAt(i)),
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              color: Colors.black54,
-                              shape: BoxShape.circle,
+                  children: [
+                    // 既存の画像
+                    ...List.generate(_keptUrls.length, (i) => Stack(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              _keptUrls[i],
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
                             ),
-                            child: const Icon(Icons.close, color: Colors.white, size: 18),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                        Positioned(
+                          top: 4,
+                          right: 12,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _keptUrls.removeAt(i)),
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.close, color: Colors.white, size: 18),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )),
+                    // 新規追加画像
+                    ...List.generate(_newFiles.length, (i) => Stack(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.file(
+                              _newFiles[i],
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 4,
+                          right: 12,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _newFiles.removeAt(i)),
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.close, color: Colors.white, size: 18),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )),
+                  ],
                 ),
               ),
             Row(
@@ -422,7 +414,7 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
                 onPressed: _isLoading ? null : _submit,
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('登録する', style: TextStyle(fontSize: 16)),
+                    : const Text('更新する', style: TextStyle(fontSize: 16)),
               ),
             ),
           ],

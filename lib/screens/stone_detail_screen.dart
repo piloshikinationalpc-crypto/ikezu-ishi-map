@@ -6,6 +6,7 @@ import '../models/stone.dart';
 import '../services/auth_service.dart';
 import '../services/app_state.dart';
 import 'comment_screen.dart';
+import 'edit_stone_screen.dart';
 
 class StoneDetailScreen extends StatefulWidget {
   final Stone stone;
@@ -18,6 +19,7 @@ class StoneDetailScreen extends StatefulWidget {
 class _StoneDetailScreenState extends State<StoneDetailScreen> {
   late Stone _stone;
   bool _likeLoading = false;
+  int _currentImageIndex = 0;
 
   @override
   void initState() {
@@ -33,7 +35,12 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
         .snapshots()
         .listen((doc) {
       if (doc.exists && mounted) {
-        setState(() => _stone = Stone.fromFirestore(doc));
+        setState(() {
+          _stone = Stone.fromFirestore(doc);
+          if (_currentImageIndex >= _stone.imageUrls.length) {
+            _currentImageIndex = 0;
+          }
+        });
       }
     });
   }
@@ -83,10 +90,44 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
     Navigator.popUntil(context, (route) => route.isFirst);
   }
 
+  void _showFullScreenPhoto(String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            Center(
+              child: InteractiveViewer(
+                child: Image.network(url, fit: BoxFit.contain),
+              ),
+            ),
+            Positioned(
+              top: 40,
+              right: 16,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  padding: const EdgeInsets.all(8),
+                  child: const Icon(Icons.close, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final uid = AuthService.currentUid;
-    final isOwner = _stone.createdBy == uid;
+    final isOwner = _stone.createdBy == uid && uid.isNotEmpty;
     final liked = _stone.likedBy.contains(uid);
 
     return Scaffold(
@@ -95,25 +136,60 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
         backgroundColor: Colors.brown,
         foregroundColor: Colors.white,
         actions: [
-          if (isOwner)
+          if (isOwner) ...[
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => EditStoneScreen(stone: _stone)),
+              ),
+            ),
             IconButton(
               icon: const Icon(Icons.delete),
               onPressed: _deleteStone,
             ),
+          ],
         ],
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (_stone.imageUrl != null)
-              Image.network(
-                _stone.imageUrl!,
-                width: double.infinity,
-                height: 250,
-                fit: BoxFit.cover,
-              )
-            else
+            // 画像ギャラリー
+            if (_stone.imageUrls.isNotEmpty) ...[
+              SizedBox(
+                height: 260,
+                child: PageView.builder(
+                  itemCount: _stone.imageUrls.length,
+                  onPageChanged: (i) => setState(() => _currentImageIndex = i),
+                  itemBuilder: (_, i) => GestureDetector(
+                    onTap: () => _showFullScreenPhoto(_stone.imageUrls[i]),
+                    child: Image.network(
+                      _stone.imageUrls[i],
+                      width: double.infinity,
+                      height: 260,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              ),
+              if (_stone.imageUrls.length > 1)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(_stone.imageUrls.length, (i) => Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: i == _currentImageIndex ? Colors.brown : Colors.grey[300],
+                      ),
+                    )),
+                  ),
+                ),
+            ] else
               Container(
                 width: double.infinity,
                 height: 180,
@@ -126,7 +202,6 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // タイトル
                   Text(_stone.title,
                       style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
@@ -198,7 +273,6 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      // いいねボタン
                       Column(
                         children: [
                           IconButton(
@@ -213,8 +287,6 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
                               style: const TextStyle(fontSize: 12)),
                         ],
                       ),
-
-                      // コメントボタン
                       Column(
                         children: [
                           IconButton(
@@ -230,8 +302,6 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
                           const Text('コメント', style: TextStyle(fontSize: 12)),
                         ],
                       ),
-
-                      // 地図で見るボタン
                       Column(
                         children: [
                           IconButton(
