@@ -33,7 +33,7 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
         permission = await Geolocator.requestPermission();
       }
       if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) return;
+          permission == LocationPermission.deniedForever) { return; }
 
       final pos = await Geolocator.getCurrentPosition();
       setState(() {
