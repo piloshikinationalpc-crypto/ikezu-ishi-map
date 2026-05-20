@@ -41,6 +41,11 @@ dependencies:
   google_maps_flutter: ^2.17.0
   image_picker: ^1.2.2
   geolocator: ^14.0.2
+  geocoding: ^3.0.0
+  flutter_image_compress: ^2.3.0
+  flutter_native_splash: ^2.4.3
+  intl: ^0.20.2
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
@@ -52,6 +57,13 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/icon/icon.png"
+
+flutter_native_splash:
+  color: "#3e2714"
+  image: assets/icon/icon.png
+  android_12:
+    color: "#3e2714"
+    image: assets/icon/icon.png
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

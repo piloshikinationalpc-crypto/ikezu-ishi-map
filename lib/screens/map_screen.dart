@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../models/stone.dart';
+import '../services/app_state.dart';
 import 'add_stone_screen.dart';
 import 'stone_detail_screen.dart';
 
@@ -16,13 +17,40 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   GoogleMapController? _mapController;
   final Set<Marker> _markers = {};
-  static const LatLng _defaultPosition = LatLng(35.6812, 139.7671); // 東京
+  BitmapDescriptor? _stoneIcon;
+  static const LatLng _defaultPosition = LatLng(35.6812, 139.7671);
 
   @override
   void initState() {
     super.initState();
+    _loadMarkerIcon();
     _loadStones();
     _moveToCurrentLocation();
+    AppState.mapJumpTarget.addListener(_onJumpTarget);
+  }
+
+  @override
+  void dispose() {
+    AppState.mapJumpTarget.removeListener(_onJumpTarget);
+    super.dispose();
+  }
+
+  void _onJumpTarget() {
+    final target = AppState.mapJumpTarget.value;
+    if (target != null) {
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(target, 17),
+      );
+      AppState.mapJumpTarget.value = null;
+    }
+  }
+
+  Future<void> _loadMarkerIcon() async {
+    final icon = await BitmapDescriptor.asset(
+      const ImageConfiguration(size: Size(48, 48)),
+      'assets/icon/marker.png',
+    );
+    setState(() => _stoneIcon = icon);
   }
 
   Future<void> _moveToCurrentLocation() async {
@@ -33,7 +61,6 @@ class _MapScreenState extends State<MapScreen> {
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) { return; }
-
       final pos = await Geolocator.getCurrentPosition();
       _mapController?.animateCamera(
         CameraUpdate.newLatLng(LatLng(pos.latitude, pos.longitude)),
@@ -48,7 +75,11 @@ class _MapScreenState extends State<MapScreen> {
         return Marker(
           markerId: MarkerId(stone.id),
           position: LatLng(stone.lat, stone.lng),
-          infoWindow: InfoWindow(title: stone.title),
+          icon: _stoneIcon ?? BitmapDescriptor.defaultMarker,
+          infoWindow: InfoWindow(
+            title: stone.title,
+            snippet: '${stone.category} / いけず度: ${'🪨' * stone.ikezuDegree}',
+          ),
           onTap: () => _onMarkerTap(stone),
         );
       }).toSet();
@@ -70,7 +101,7 @@ class _MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('全国いけず石マップ'),
+        title: const Text('いけず石マップ'),
         backgroundColor: Colors.brown,
         foregroundColor: Colors.white,
       ),
@@ -82,7 +113,10 @@ class _MapScreenState extends State<MapScreen> {
         markers: _markers,
         myLocationEnabled: true,
         myLocationButtonEnabled: true,
-        onMapCreated: (controller) => _mapController = controller,
+        onMapCreated: (controller) {
+          _mapController = controller;
+          _onJumpTarget();
+        },
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.brown,
