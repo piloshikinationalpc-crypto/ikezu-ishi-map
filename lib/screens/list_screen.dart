@@ -2,7 +2,9 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart' hide AppState;
 import '../models/stone.dart';
+import '../services/app_state.dart';
 import 'stone_detail_screen.dart';
 
 class ListScreen extends StatefulWidget {
@@ -128,9 +130,18 @@ class _ListScreenState extends State<ListScreen> {
                 ),
               Expanded(
                 child: ListView.builder(
-                  itemCount: stones.length,
+                  itemCount: AppState.showAds
+                      ? stones.length + (stones.length ~/ 5)
+                      : stones.length,
                   itemBuilder: (context, index) {
-                    final stone = stones[index];
+                    if (AppState.showAds && (index + 1) % 6 == 0) {
+                      return const _BannerAdItem();
+                    }
+                    final stoneIndex = AppState.showAds
+                        ? index - (index ~/ 6)
+                        : index;
+                    if (stoneIndex >= stones.length) return const SizedBox.shrink();
+                    final stone = stones[stoneIndex];
                     final dist = _distanceTo(stone);
                     return ListTile(
                       leading: stone.imageUrl != null
@@ -195,6 +206,47 @@ class _ListScreenState extends State<ListScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+class _BannerAdItem extends StatefulWidget {
+  const _BannerAdItem();
+
+  @override
+  State<_BannerAdItem> createState() => _BannerAdItemState();
+}
+
+class _BannerAdItemState extends State<_BannerAdItem> {
+  BannerAd? _ad;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ad = BannerAd(
+      adUnitId: AppState.adUnitId,
+      size: AdSize.banner,
+      request: const AdRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (_) => setState(() => _loaded = true),
+      ),
+    )..load();
+  }
+
+  @override
+  void dispose() {
+    _ad?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_loaded || _ad == null) return const SizedBox.shrink();
+    return Container(
+      height: _ad!.size.height.toDouble(),
+      alignment: Alignment.center,
+      child: AdWidget(ad: _ad!),
     );
   }
 }

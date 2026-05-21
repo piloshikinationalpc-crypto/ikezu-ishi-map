@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart' hide AppState;
 import 'firebase_options.dart';
 import 'models/user_model.dart';
 import 'screens/home_screen.dart';
@@ -19,6 +20,8 @@ void main() async {
   try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   } catch (_) {}
+
+  await MobileAds.instance.initialize();
 
   FlutterNativeSplash.remove();
   runApp(const MyApp());
