@@ -1,7 +1,12 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/stone.dart';
 import '../services/auth_service.dart';
 import '../services/app_state.dart';
@@ -19,6 +24,7 @@ class StoneDetailScreen extends StatefulWidget {
 class _StoneDetailScreenState extends State<StoneDetailScreen> {
   late Stone _stone;
   bool _likeLoading = false;
+  bool _photoUploading = false;
   int _currentImageIndex = 0;
 
   @override
@@ -124,10 +130,86 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
     );
   }
 
+  Future<void> _addPhoto(ImageSource source) async {
+    if (_stone.imageUrls.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('写真は最大5枚まで登録できます')),
+      );
+      return;
+    }
+
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: source);
+    if (picked == null) return;
+
+    setState(() => _photoUploading = true);
+    try {
+      final file = File(picked.path);
+      final dir = await getTemporaryDirectory();
+      final targetPath = '${dir.path}/compressed_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final compressed = await FlutterImageCompress.compressAndGetFile(
+        file.absolute.path,
+        targetPath,
+        quality: 70,
+        minWidth: 1080,
+        minHeight: 1080,
+      );
+      final uploadFile = compressed != null ? File(compressed.path) : file;
+
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('stones/${DateTime.now().millisecondsSinceEpoch}.jpg');
+      await ref.putFile(uploadFile);
+      final url = await ref.getDownloadURL();
+
+      await FirebaseFirestore.instance.collection('stones').doc(_stone.id).update({
+        'imageUrls': FieldValue.arrayUnion([url]),
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('エラー: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _photoUploading = false);
+    }
+  }
+
+  void _showAddPhotoSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('撮影'),
+              onTap: () {
+                Navigator.pop(context);
+                _addPhoto(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('ギャラリーから選択'),
+              onTap: () {
+                Navigator.pop(context);
+                _addPhoto(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final uid = AuthService.currentUid;
-    final isOwner = _stone.createdBy == uid && uid.isNotEmpty;
+    // 投稿者判定: createdBy が空（旧データ）または UID が一致する場合
+    final isOwner = _stone.createdBy.isEmpty || _stone.createdBy == uid;
     final liked = _stone.likedBy.contains(uid);
 
     return Scaffold(
@@ -138,7 +220,13 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
         actions: [
           if (isOwner) ...[
             IconButton(
+              icon: const Icon(Icons.add_a_photo_outlined),
+              tooltip: '写真を追加',
+              onPressed: _photoUploading ? null : _showAddPhotoSheet,
+            ),
+            IconButton(
               icon: const Icon(Icons.edit),
+              tooltip: '編集',
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => EditStoneScreen(stone: _stone)),
@@ -146,6 +234,7 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.delete),
+              tooltip: '削除',
               onPressed: _deleteStone,
             ),
           ],
@@ -190,12 +279,22 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
                   ),
                 ),
             ] else
-              Container(
-                width: double.infinity,
-                height: 180,
-                color: Colors.brown[50],
-                child: const Icon(Icons.landscape, size: 64, color: Colors.brown),
+              Stack(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    height: 180,
+                    color: Colors.brown[50],
+                    child: const Icon(Icons.landscape, size: 64, color: Colors.brown),
+                  ),
+                  if (_photoUploading)
+                    const Positioned.fill(
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                ],
               ),
+            if (_photoUploading && _stone.imageUrls.isNotEmpty)
+              const LinearProgressIndicator(color: Colors.brown),
 
             Padding(
               padding: const EdgeInsets.all(16),
