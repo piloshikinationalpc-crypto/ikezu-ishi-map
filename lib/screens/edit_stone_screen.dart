@@ -23,14 +23,16 @@ class _EditStoneScreenState extends State<EditStoneScreen> {
   late List<String> _keptUrls;
   final List<File> _newFiles = [];
   bool _isLoading = false;
-  late String _selectedCategory;
+  late Set<String> _selectedCategories;
   late int _ikezuDegree;
   late bool _isExisting;
   final List<String> _extraCategories = [];
 
   List<String> get _allCategories {
     final base = [...kStoneCategories, ..._extraCategories];
-    if (!base.contains(_selectedCategory)) base.add(_selectedCategory);
+    for (final cat in _selectedCategories) {
+      if (!base.contains(cat)) base.add(cat);
+    }
     return base;
   }
 
@@ -42,7 +44,7 @@ class _EditStoneScreenState extends State<EditStoneScreen> {
     _descController = TextEditingController(text: s.description);
     _selectedLocation = LatLng(s.lat, s.lng);
     _keptUrls = List.from(s.imageUrls);
-    _selectedCategory = s.category;
+    _selectedCategories = Set.from(s.categories);
     _ikezuDegree = s.ikezuDegree;
     _isExisting = s.isExisting;
   }
@@ -71,7 +73,7 @@ class _EditStoneScreenState extends State<EditStoneScreen> {
     if (result != null && result.isNotEmpty) {
       setState(() {
         _extraCategories.add(result);
-        _selectedCategory = result;
+        if (_selectedCategories.length < 3) _selectedCategories.add(result);
       });
     }
   }
@@ -141,7 +143,7 @@ class _EditStoneScreenState extends State<EditStoneScreen> {
         'description': _descController.text,
         'lat': _selectedLocation.latitude,
         'lng': _selectedLocation.longitude,
-        'category': _selectedCategory,
+        'categories': _selectedCategories.toList(),
         'ikezuDegree': _ikezuDegree,
         'isExisting': _isExisting,
         'imageUrls': [..._keptUrls, ...newUrls],
@@ -192,19 +194,28 @@ class _EditStoneScreenState extends State<EditStoneScreen> {
             ),
             const SizedBox(height: 16),
             const Text('カテゴリー', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text('(最大3つまで)', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 4,
               children: [
                 ..._allCategories.map((cat) {
-                  final selected = _selectedCategory == cat;
-                  return ChoiceChip(
+                  final selected = _selectedCategories.contains(cat);
+                  return FilterChip(
                     label: Text(cat),
                     selected: selected,
                     selectedColor: Colors.brown,
                     labelStyle: TextStyle(color: selected ? Colors.white : Colors.black87),
-                    onSelected: (_) => setState(() => _selectedCategory = cat),
+                    onSelected: (val) {
+                      setState(() {
+                        if (val) {
+                          if (_selectedCategories.length < 3) _selectedCategories.add(cat);
+                        } else {
+                          if (_selectedCategories.length > 1) _selectedCategories.remove(cat);
+                        }
+                      });
+                    },
                   );
                 }),
                 ActionChip(

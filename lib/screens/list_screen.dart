@@ -101,7 +101,7 @@ class _ListScreenState extends State<ListScreen> {
 
           var stones = snapshot.data!.docs
               .map((doc) => Stone.fromFirestore(doc))
-              .where((s) => _filterCategory == null || s.category == _filterCategory)
+              .where((s) => _filterCategory == null || s.categories.contains(_filterCategory))
               .toList();
 
           if (_sortByDistance && _currentPosition != null) {

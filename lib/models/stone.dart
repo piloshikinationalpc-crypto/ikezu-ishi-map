@@ -18,7 +18,7 @@ class Stone {
   final double lng;
   final List<String> imageUrls;
   final DateTime createdAt;
-  final String category;
+  final List<String> categories;
   final int ikezuDegree;
   final int likeCount;
   final List<String> likedBy;
@@ -26,7 +26,8 @@ class Stone {
   final String createdBy;
   final bool isExisting;
 
-  // 後方互換: 旧データの単一 imageUrl もサポート
+  // 後方互換: 旧コードが category (単数) を参照している箇所向け
+  String get category => categories.isNotEmpty ? categories.first : 'その他';
   String? get imageUrl => imageUrls.isNotEmpty ? imageUrls.first : null;
 
   Stone({
@@ -37,7 +38,7 @@ class Stone {
     required this.lng,
     this.imageUrls = const [],
     required this.createdAt,
-    required this.category,
+    this.categories = const ['その他'],
     required this.ikezuDegree,
     this.likeCount = 0,
     this.likedBy = const [],
@@ -48,11 +49,20 @@ class Stone {
 
   factory Stone.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+
+    // imageUrls: 旧 imageUrl (String) → リストに変換
     final oldUrl = data['imageUrl'] as String?;
     final rawUrls = data['imageUrls'];
     final imageUrls = rawUrls != null
         ? List<String>.from(rawUrls as List)
         : (oldUrl != null ? [oldUrl] : <String>[]);
+
+    // categories: 旧 category (String) → リストに変換
+    final oldCat = data['category'] as String?;
+    final rawCats = data['categories'];
+    final categories = rawCats != null
+        ? List<String>.from(rawCats as List)
+        : (oldCat != null && oldCat.isNotEmpty ? [oldCat] : ['その他']);
 
     return Stone(
       id: doc.id,
@@ -62,7 +72,7 @@ class Stone {
       lng: (data['lng'] as num).toDouble(),
       imageUrls: imageUrls,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
-      category: data['category'] ?? 'その他',
+      categories: categories,
       ikezuDegree: (data['ikezuDegree'] as num?)?.toInt() ?? 1,
       likeCount: (data['likeCount'] as num?)?.toInt() ?? 0,
       likedBy: List<String>.from(data['likedBy'] ?? []),
@@ -80,7 +90,7 @@ class Stone {
       'lng': lng,
       'imageUrls': imageUrls,
       'createdAt': Timestamp.fromDate(createdAt),
-      'category': category,
+      'categories': categories,
       'ikezuDegree': ikezuDegree,
       'likeCount': likeCount,
       'likedBy': likedBy,

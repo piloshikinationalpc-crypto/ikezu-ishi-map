@@ -96,36 +96,12 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
     Navigator.popUntil(context, (route) => route.isFirst);
   }
 
-  void _showFullScreenPhoto(String url) {
+  void _showFullScreenPhoto(int initialIndex) {
     showDialog(
       context: context,
-      builder: (_) => Dialog(
-        backgroundColor: Colors.black,
-        insetPadding: EdgeInsets.zero,
-        child: Stack(
-          children: [
-            Center(
-              child: InteractiveViewer(
-                child: Image.network(url, fit: BoxFit.contain),
-              ),
-            ),
-            Positioned(
-              top: 40,
-              right: 16,
-              child: GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.black54,
-                    shape: BoxShape.circle,
-                  ),
-                  padding: const EdgeInsets.all(8),
-                  child: const Icon(Icons.close, color: Colors.white),
-                ),
-              ),
-            ),
-          ],
-        ),
+      builder: (_) => _FullScreenPhotoDialog(
+        urls: _stone.imageUrls,
+        initialIndex: initialIndex,
       ),
     );
   }
@@ -263,7 +239,7 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
                   itemCount: _stone.imageUrls.length,
                   onPageChanged: (i) => setState(() => _currentImageIndex = i),
                   itemBuilder: (_, i) => GestureDetector(
-                    onTap: () => _showFullScreenPhoto(_stone.imageUrls[i]),
+                    onTap: () => _showFullScreenPhoto(i),
                     child: Image.network(
                       _stone.imageUrls[i],
                       width: double.infinity,
@@ -338,13 +314,17 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
                   ),
 
                   // カテゴリー & いけず度
-                  Row(
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Chip(
-                        label: Text(_stone.category),
+                      ..._stone.categories.map((cat) => Chip(
+                        label: Text(cat),
                         backgroundColor: Colors.brown[100],
-                      ),
-                      const SizedBox(width: 8),
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        padding: EdgeInsets.zero,
+                      )),
                       Text(
                         'いけず度: ${'🪨' * _stone.ikezuDegree}',
                         style: const TextStyle(fontSize: 16),
@@ -428,6 +408,88 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _FullScreenPhotoDialog extends StatefulWidget {
+  final List<String> urls;
+  final int initialIndex;
+  const _FullScreenPhotoDialog({required this.urls, required this.initialIndex});
+
+  @override
+  State<_FullScreenPhotoDialog> createState() => _FullScreenPhotoDialogState();
+}
+
+class _FullScreenPhotoDialogState extends State<_FullScreenPhotoDialog> {
+  late final PageController _controller;
+  late int _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.initialIndex;
+    _controller = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.black,
+      insetPadding: EdgeInsets.zero,
+      child: Stack(
+        children: [
+          PageView.builder(
+            controller: _controller,
+            itemCount: widget.urls.length,
+            onPageChanged: (i) => setState(() => _current = i),
+            itemBuilder: (_, i) => InteractiveViewer(
+              child: Image.network(widget.urls[i], fit: BoxFit.contain),
+            ),
+          ),
+          // 閉じるボタン
+          Positioned(
+            top: 40,
+            right: 16,
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                padding: const EdgeInsets.all(8),
+                child: const Icon(Icons.close, color: Colors.white),
+              ),
+            ),
+          ),
+          // ドット
+          if (widget.urls.length > 1)
+            Positioned(
+              bottom: 24,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(widget.urls.length, (i) => Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: i == _current ? Colors.white : Colors.white38,
+                  ),
+                )),
+              ),
+            ),
+        ],
       ),
     );
   }

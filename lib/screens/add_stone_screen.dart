@@ -25,7 +25,7 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
   LatLng? _selectedLocation;
   final List<File> _imageFiles = [];
   bool _isLoading = false;
-  String _selectedCategory = kStoneCategories.first;
+  final Set<String> _selectedCategories = {kStoneCategories.first};
   int _ikezuDegree = 1;
   bool _isExisting = true;
   final List<String> _extraCategories = [];
@@ -77,7 +77,7 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
     if (result != null && result.isNotEmpty) {
       setState(() {
         _extraCategories.add(result);
-        _selectedCategory = result;
+        _selectedCategories.add(result);
       });
     }
   }
@@ -163,7 +163,7 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
         'lng': _selectedLocation!.longitude,
         'imageUrls': imageUrls,
         'createdAt': Timestamp.now(),
-        'category': _selectedCategory,
+        'categories': _selectedCategories.toList(),
         'ikezuDegree': _ikezuDegree,
         'likeCount': 0,
         'likedBy': [],
@@ -216,20 +216,30 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
             const SizedBox(height: 16),
             const Text('カテゴリー', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
+            Text('(最大3つまで)', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 4,
               children: [
                 ..._allCategories.map((cat) {
-                  final selected = _selectedCategory == cat;
-                  return ChoiceChip(
+                  final selected = _selectedCategories.contains(cat);
+                  return FilterChip(
                     label: Text(cat),
                     selected: selected,
                     selectedColor: Colors.brown,
                     labelStyle: TextStyle(
                       color: selected ? Colors.white : Colors.black87,
                     ),
-                    onSelected: (_) => setState(() => _selectedCategory = cat),
+                    onSelected: (val) {
+                      setState(() {
+                        if (val) {
+                          if (_selectedCategories.length < 3) _selectedCategories.add(cat);
+                        } else {
+                          if (_selectedCategories.length > 1) _selectedCategories.remove(cat);
+                        }
+                      });
+                    },
                   );
                 }),
                 ActionChip(
