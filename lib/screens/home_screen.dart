@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/app_state.dart';
 import 'map_screen.dart';
 import 'list_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,7 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {});
   }
 
-  void _onMapJump(){
+  void _onMapJump() {
     if (AppState.mapJumpTarget.value != null) {
       setState(() => AppState.bottomNavIndex.value = 0);
     }
@@ -44,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: const [
           MapScreen(),
           ListScreen(),
+          ProfileScreen(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -53,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.map), label: '地図'),
           BottomNavigationBarItem(icon: Icon(Icons.list), label: '一覧'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'プロフィール'),
         ],
       ),
     );

@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/stone.dart';
 import '../services/auth_service.dart';
+import '../services/user_service.dart';
 import 'map_picker_screen.dart';
 
 class AddStoneScreen extends StatefulWidget {
@@ -156,6 +157,7 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
       }
 
       final address = await _fetchAddress(_selectedLocation!);
+      final profile = await UserService.getCurrentProfile();
 
       await FirebaseFirestore.instance.collection('stones').add({
         'title': _titleController.text,
@@ -170,6 +172,7 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
         'likedBy': [],
         'address': address,
         'createdBy': AuthService.currentUid,
+        'createdByNickname': profile?.nickname ?? '',
         'isExisting': _isExisting,
       });
 

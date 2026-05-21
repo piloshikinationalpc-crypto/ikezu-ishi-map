@@ -1,1 +1,32 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"ikezu-ishi-map","appId":"1:816871958632:android:69452b4feec6aaa86bb3dd","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"ikezu-ishi-map","configurations":{"android":"1:816871958632:android:69452b4feec6aaa86bb3dd","ios":"1:816871958632:ios:c5e2c57859c6cc406bb3dd"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "hosting": {
+    "public": "public",
+    "ignore": ["firebase.json", "**/.*"]
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "ikezu-ishi-map",
+          "appId": "1:816871958632:android:69452b4feec6aaa86bb3dd",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "ikezu-ishi-map",
+          "configurations": {
+            "android": "1:816871958632:android:69452b4feec6aaa86bb3dd",
+            "ios": "1:816871958632:ios:c5e2c57859c6cc406bb3dd"
+          }
+        }
+      }
+    }
+  }
+}

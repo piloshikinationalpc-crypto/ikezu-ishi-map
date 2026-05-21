@@ -195,8 +195,7 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final uid = AuthService.currentUid;
-    // 投稿者判定: createdBy が空（旧データ）または UID が一致する場合
-    final isOwner = _stone.createdBy.isEmpty || _stone.createdBy == uid;
+    final isOwner = uid.isNotEmpty && _stone.createdBy == uid;
     final liked = _stone.likedBy.contains(uid);
 
     return Scaffold(
@@ -351,7 +350,12 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
                     const SizedBox(height: 12),
                   ],
 
-                  // 登録日時
+                  // 投稿者・登録日時
+                  if (_stone.createdByNickname.isNotEmpty)
+                    Text(
+                      '投稿者: ${_stone.createdByNickname}',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                    ),
                   Text(
                     '登録日: ${DateFormat('yyyy年MM月dd日').format(_stone.createdAt)}',
                     style: TextStyle(color: Colors.grey[600], fontSize: 13),

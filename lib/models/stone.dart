@@ -24,6 +24,7 @@ class Stone {
   final List<String> likedBy;
   final String? address;
   final String createdBy;
+  final String createdByNickname;
   final bool isExisting;
 
   // 後方互換: 旧コードが category (単数) を参照している箇所向け
@@ -44,6 +45,7 @@ class Stone {
     this.likedBy = const [],
     this.address,
     required this.createdBy,
+    this.createdByNickname = '',
     this.isExisting = true,
   });
 
@@ -78,6 +80,7 @@ class Stone {
       likedBy: List<String>.from(data['likedBy'] ?? []),
       address: data['address'],
       createdBy: data['createdBy'] ?? '',
+      createdByNickname: data['createdByNickname'] as String? ?? '',
       isExisting: data['isExisting'] as bool? ?? true,
     );
   }
@@ -96,6 +99,7 @@ class Stone {
       'likedBy': likedBy,
       'address': address,
       'createdBy': createdBy,
+      'createdByNickname': createdByNickname,
       'isExisting': isExisting,
     };
   }
