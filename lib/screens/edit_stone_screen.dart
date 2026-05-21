@@ -7,6 +7,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/stone.dart';
+import 'map_picker_screen.dart';
 
 class EditStoneScreen extends StatefulWidget {
   final Stone stone;
@@ -312,20 +313,63 @@ class _EditStoneScreenState extends State<EditStoneScreen> {
             const SizedBox(height: 16),
             const Text('場所', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            SizedBox(
-              height: 220,
-              child: GoogleMap(
-                initialCameraPosition: CameraPosition(
-                  target: _selectedLocation,
-                  zoom: 16,
-                ),
-                markers: {
-                  Marker(markerId: const MarkerId('sel'), position: _selectedLocation),
-                },
-                myLocationEnabled: true,
-                myLocationButtonEnabled: true,
-                onTap: (latLng) => setState(() => _selectedLocation = latLng),
-                onMapCreated: (_) {},
+            GestureDetector(
+              onTap: () async {
+                final result = await Navigator.push<LatLng>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MapPickerScreen(initialLocation: _selectedLocation),
+                  ),
+                );
+                if (result != null) setState(() => _selectedLocation = result);
+              },
+              child: Stack(
+                children: [
+                  SizedBox(
+                    height: 220,
+                    child: AbsorbPointer(
+                      child: GoogleMap(
+                        initialCameraPosition: CameraPosition(
+                          target: _selectedLocation,
+                          zoom: 16,
+                        ),
+                        markers: {
+                          Marker(markerId: const MarkerId('sel'), position: _selectedLocation),
+                        },
+                        myLocationEnabled: false,
+                        myLocationButtonEnabled: false,
+                        zoomControlsEnabled: false,
+                        onMapCreated: (_) {},
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.brown,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.open_in_full, color: Colors.white, size: 14),
+                          SizedBox(width: 4),
+                          Text('タップで拡大', style: TextStyle(color: Colors.white, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '📍 ${_selectedLocation.latitude.toStringAsFixed(5)}, ${_selectedLocation.longitude.toStringAsFixed(5)}',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
               ),
             ),
             const SizedBox(height: 16),

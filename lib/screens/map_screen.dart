@@ -119,6 +119,7 @@ class _MapScreenState extends State<MapScreen> {
         markers: _markers,
         myLocationEnabled: true,
         myLocationButtonEnabled: true,
+        zoomControlsEnabled: false,
         onMapCreated: (controller) {
           _mapController = controller;
           if (_currentPosition != null) {
