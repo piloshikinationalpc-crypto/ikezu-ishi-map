@@ -139,31 +139,42 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
     }
 
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: source);
-    if (picked == null) return;
+    List<XFile> pickedFiles;
+
+    if (source == ImageSource.gallery) {
+      final remaining = 5 - _stone.imageUrls.length;
+      pickedFiles = await picker.pickMultiImage(limit: remaining);
+    } else {
+      final single = await picker.pickImage(source: source);
+      pickedFiles = single != null ? [single] : [];
+    }
+    if (pickedFiles.isEmpty) return;
 
     setState(() => _photoUploading = true);
     try {
-      final file = File(picked.path);
       final dir = await getTemporaryDirectory();
-      final targetPath = '${dir.path}/compressed_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final compressed = await FlutterImageCompress.compressAndGetFile(
-        file.absolute.path,
-        targetPath,
-        quality: 70,
-        minWidth: 1080,
-        minHeight: 1080,
-      );
-      final uploadFile = compressed != null ? File(compressed.path) : file;
+      final newUrls = <String>[];
 
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('stones/${DateTime.now().millisecondsSinceEpoch}.jpg');
-      await ref.putFile(uploadFile);
-      final url = await ref.getDownloadURL();
+      for (final xfile in pickedFiles) {
+        final file = File(xfile.path);
+        final targetPath = '${dir.path}/compressed_${DateTime.now().millisecondsSinceEpoch}_${newUrls.length}.jpg';
+        final compressed = await FlutterImageCompress.compressAndGetFile(
+          file.absolute.path,
+          targetPath,
+          quality: 70,
+          minWidth: 1080,
+          minHeight: 1080,
+        );
+        final uploadFile = compressed != null ? File(compressed.path) : file;
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('stones/${DateTime.now().millisecondsSinceEpoch}_${newUrls.length}.jpg');
+        await ref.putFile(uploadFile);
+        newUrls.add(await ref.getDownloadURL());
+      }
 
       await FirebaseFirestore.instance.collection('stones').doc(_stone.id).update({
-        'imageUrls': FieldValue.arrayUnion([url]),
+        'imageUrls': FieldValue.arrayUnion(newUrls),
       });
     } catch (e) {
       if (mounted) {

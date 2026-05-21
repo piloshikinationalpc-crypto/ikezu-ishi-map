@@ -77,16 +77,25 @@ class _EditStoneScreenState extends State<EditStoneScreen> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    if (_keptUrls.length + _newFiles.length >= 5) {
+    final total = _keptUrls.length + _newFiles.length;
+    if (total >= 5) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('写真は最大5枚まで登録できます')),
       );
       return;
     }
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: source);
-    if (picked != null) {
-      setState(() => _newFiles.add(File(picked.path)));
+    if (source == ImageSource.gallery) {
+      final remaining = 5 - total;
+      final picked = await picker.pickMultiImage(limit: remaining);
+      if (picked.isNotEmpty) {
+        setState(() => _newFiles.addAll(picked.map((x) => File(x.path))));
+      }
+    } else {
+      final picked = await picker.pickImage(source: source);
+      if (picked != null) {
+        setState(() => _newFiles.add(File(picked.path)));
+      }
     }
   }
 

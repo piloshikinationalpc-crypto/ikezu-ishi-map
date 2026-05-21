@@ -90,9 +90,17 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
       return;
     }
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: source);
-    if (picked != null) {
-      setState(() => _imageFiles.add(File(picked.path)));
+    if (source == ImageSource.gallery) {
+      final remaining = 5 - _imageFiles.length;
+      final picked = await picker.pickMultiImage(limit: remaining);
+      if (picked.isNotEmpty) {
+        setState(() => _imageFiles.addAll(picked.map((x) => File(x.path))));
+      }
+    } else {
+      final picked = await picker.pickImage(source: source);
+      if (picked != null) {
+        setState(() => _imageFiles.add(File(picked.path)));
+      }
     }
   }
 
