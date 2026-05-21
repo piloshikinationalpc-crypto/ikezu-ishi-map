@@ -8,8 +8,7 @@ class AppState {
   static final ValueNotifier<UserModel?> currentProfile = ValueNotifier(null);
 
   // 広告表示フラグ: true にすると一覧に広告が挿入される
-  static const bool showAds = false;
+  static const bool showAds = true;
 
-  // TODO: AdMob審査通過後に本番IDへ差し替える
-  static const String adUnitId = 'ca-app-pub-3940256099942544/6300978111'; // テスト用バナー
+  static const String adUnitId = 'ca-app-pub-5692048493095949/7307413440';
 }
