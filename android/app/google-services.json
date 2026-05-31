@@ -14,6 +14,30 @@
       },
       "oauth_client": [
         {
+          "client_id": "816871958632-95oii6gpgho7jejieoi60gt6f2uahafu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.piloshiki.ikezu_ishi_map",
+            "certificate_hash": "487a4872ef77518e1a75d6b41efc971595343bc7"
+          }
+        },
+        {
+          "client_id": "816871958632-ao4sevqihtksvbm3nj8uhb22had476v3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.piloshiki.ikezu_ishi_map",
+            "certificate_hash": "6ba1d3a99f9d371339afbb8308786372200b45cc"
+          }
+        },
+        {
+          "client_id": "816871958632-k4a41msvokhfesikq8g9v4tast7q5p2l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.piloshiki.ikezu_ishi_map",
+            "certificate_hash": "a09ba0f2d6150ae05f83f5ce7085a4f4e65365ba"
+          }
+        },
+        {
           "client_id": "816871958632-vuhjsin8vo0op1cosj88fjm6i5ima6ij.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -29,6 +53,13 @@
             {
               "client_id": "816871958632-vuhjsin8vo0op1cosj88fjm6i5ima6ij.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "816871958632-ieacjvjkljnqsqsio3irj78iclacpv43.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.piloshiki.ikezuIshiMap"
+              }
             }
           ]
         }
