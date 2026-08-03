@@ -25,16 +25,30 @@ class _ListScreenState extends State<ListScreen> {
     _fetchCurrentPosition();
   }
 
-  Future<void> _fetchCurrentPosition() async {
+  // showFeedback: 引っ張って更新から呼ばれたときだけ結果をSnackBarで知らせる
+  Future<void> _fetchCurrentPosition({bool showFeedback = false}) async {
+    String message;
     try {
       LocationPermission perm = await Geolocator.checkPermission();
       if (perm == LocationPermission.denied) {
         perm = await Geolocator.requestPermission();
       }
-      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) { return; }
-      final pos = await Geolocator.getCurrentPosition();
-      setState(() => _currentPosition = pos);
-    } catch (_) {}
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        message = '位置情報が許可されていないため、距離は表示できません';
+      } else {
+        final pos = await Geolocator.getCurrentPosition();
+        if (!mounted) return;
+        setState(() => _currentPosition = pos);
+        message = '現在地を更新しました';
+      }
+    } catch (_) {
+      message = '現在地を取得できませんでした';
+    }
+    if (!mounted || !showFeedback) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+    );
   }
 
   double _distanceTo(Stone stone) {
@@ -44,7 +58,8 @@ class _ListScreenState extends State<ListScreen> {
     final lat2 = stone.lat * pi / 180;
     final dLat = (stone.lat - _currentPosition!.latitude) * pi / 180;
     final dLng = (stone.lng - _currentPosition!.longitude) * pi / 180;
-    final a = sin(dLat / 2) * sin(dLat / 2) +
+    final a =
+        sin(dLat / 2) * sin(dLat / 2) +
         cos(lat1) * cos(lat2) * sin(dLng / 2) * sin(dLng / 2);
     return R * 2 * atan2(sqrt(a), sqrt(1 - a));
   }
@@ -65,16 +80,21 @@ class _ListScreenState extends State<ListScreen> {
         actions: [
           if (_currentPosition != null)
             IconButton(
-              icon: Icon(_sortByDistance ? Icons.near_me : Icons.near_me_outlined),
+              icon: Icon(
+                _sortByDistance ? Icons.near_me : Icons.near_me_outlined,
+              ),
               tooltip: '近い順',
-              onPressed: () => setState(() => _sortByDistance = !_sortByDistance),
+              onPressed: () =>
+                  setState(() => _sortByDistance = !_sortByDistance),
             ),
           PopupMenuButton<String?>(
             icon: const Icon(Icons.filter_list),
             onSelected: (val) => setState(() => _filterCategory = val),
             itemBuilder: (_) => [
               const PopupMenuItem(value: null, child: Text('すべて')),
-              ...kStoneCategories.map((cat) => PopupMenuItem(value: cat, child: Text(cat))),
+              ...kStoneCategories.map(
+                (cat) => PopupMenuItem(value: cat, child: Text(cat)),
+              ),
             ],
           ),
         ],
@@ -85,6 +105,26 @@ class _ListScreenState extends State<ListScreen> {
             .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.cloud_off, size: 64, color: Colors.brown),
+                  SizedBox(height: 16),
+                  Text(
+                    '読み込みに失敗しました',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    '通信環境を確認してください',
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          }
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -95,7 +135,10 @@ class _ListScreenState extends State<ListScreen> {
                 children: [
                   Icon(Icons.location_off, size: 64, color: Colors.brown),
                   SizedBox(height: 16),
-                  Text('まだ登録されていません', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                  Text(
+                    'まだ登録されていません',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
                 ],
               ),
             );
@@ -103,7 +146,11 @@ class _ListScreenState extends State<ListScreen> {
 
           var stones = snapshot.data!.docs
               .map((doc) => Stone.fromFirestore(doc))
-              .where((s) => _filterCategory == null || s.categories.contains(_filterCategory))
+              .where(
+                (s) =>
+                    _filterCategory == null ||
+                    s.categories.contains(_filterCategory),
+              )
               .toList();
 
           if (_sortByDistance && _currentPosition != null) {
@@ -115,7 +162,10 @@ class _ListScreenState extends State<ListScreen> {
               Container(
                 width: double.infinity,
                 color: Colors.brown[50],
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 child: Row(
                   children: [
                     Text(
@@ -135,80 +185,129 @@ class _ListScreenState extends State<ListScreen> {
               ),
               Expanded(
                 child: RefreshIndicator(
-                  onRefresh: _fetchCurrentPosition,
-                  child: ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: AppState.showAds
-                        ? stones.length + (stones.length ~/ 5)
-                        : stones.length,
-                    itemBuilder: (context, index) {
-                      if (AppState.showAds && (index + 1) % 6 == 0) {
-                        return const _BannerAdItem();
-                      }
-                      final stoneIndex = AppState.showAds
-                          ? index - (index ~/ 6)
-                          : index;
-                      if (stoneIndex >= stones.length) return const SizedBox.shrink();
-                      final stone = stones[stoneIndex];
-                      final dist = _distanceTo(stone);
-                      return ListTile(
-                        leading: stone.imageUrl != null
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: Image.network(
-                                  stone.imageUrl!,
-                                  width: 56,
-                                  height: 56,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            : Container(
-                                width: 56,
-                                height: 56,
-                                decoration: BoxDecoration(
-                                  color: Colors.brown[100],
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Icon(Icons.landscape, color: Colors.brown),
-                              ),
-                        title: Row(
-                          children: [
-                            Expanded(
-                              child: Text(stone.title,
-                                  style: const TextStyle(fontWeight: FontWeight.bold)),
+                  onRefresh: () => _fetchCurrentPosition(showFeedback: true),
+                  child: stones.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: const [
+                            SizedBox(height: 80),
+                            Icon(
+                              Icons.search_off,
+                              size: 64,
+                              color: Colors.brown,
                             ),
-                            Text('🪨' * stone.ikezuDegree,
-                                style: const TextStyle(fontSize: 12)),
+                            SizedBox(height: 16),
+                            Center(
+                              child: Text(
+                                '該当するいけず石はありません',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
                           ],
+                        )
+                      : ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: AppState.showAds
+                              ? stones.length + (stones.length ~/ 5)
+                              : stones.length,
+                          itemBuilder: (context, index) {
+                            if (AppState.showAds && (index + 1) % 6 == 0) {
+                              return const _BannerAdItem();
+                            }
+                            final stoneIndex = AppState.showAds
+                                ? index - (index ~/ 6)
+                                : index;
+                            if (stoneIndex >= stones.length) {
+                              return const SizedBox.shrink();
+                            }
+                            final stone = stones[stoneIndex];
+                            final dist = _distanceTo(stone);
+                            return ListTile(
+                              leading: stone.imageUrl != null
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: Image.network(
+                                        stone.imageUrl!,
+                                        width: 56,
+                                        height: 56,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    )
+                                  : Container(
+                                      width: 56,
+                                      height: 56,
+                                      decoration: BoxDecoration(
+                                        color: Colors.brown[100],
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Icon(
+                                        Icons.landscape,
+                                        color: Colors.brown,
+                                      ),
+                                    ),
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      stone.title,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    '🪨' * stone.ikezuDegree,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    stone.category,
+                                    style: TextStyle(
+                                      color: Colors.brown[700],
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  if (dist != double.infinity)
+                                    Text(
+                                      _formatDistance(dist),
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.thumb_up,
+                                    size: 14,
+                                    color: Colors.grey,
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text('${stone.likeCount}'),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.chevron_right),
+                                ],
+                              ),
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      StoneDetailScreen(stone: stone),
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(stone.category,
-                                style: TextStyle(color: Colors.brown[700], fontSize: 12)),
-                            if (dist != double.infinity)
-                              Text(_formatDistance(dist),
-                                  style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.thumb_up, size: 14, color: Colors.grey),
-                            const SizedBox(width: 2),
-                            Text('${stone.likeCount}'),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.chevron_right),
-                          ],
-                        ),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => StoneDetailScreen(stone: stone)),
-                        ),
-                      );
-                    },
-                  ),
                 ),
               ),
             ],
