@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -19,6 +21,7 @@ class _MapScreenState extends State<MapScreen> {
   final Set<Marker> _markers = {};
   BitmapDescriptor? _stoneIcon;
   List<DocumentSnapshot> _latestDocs = [];
+  StreamSubscription<QuerySnapshot>? _stonesSub;
   LatLng? _currentPosition;
   static const LatLng _defaultPosition = LatLng(35.6812, 139.7671);
 
@@ -33,6 +36,7 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   void dispose() {
+    _stonesSub?.cancel();
     AppState.mapJumpTarget.removeListener(_onJumpTarget);
     super.dispose();
   }
@@ -72,13 +76,18 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _loadStones() {
-    FirebaseFirestore.instance.collection('stones').snapshots().listen((snap) {
+    // 購読を保持しておく。stones はアプリ全体で共有され頻繁に更新されるので、
+    // 解除しないままサインアウト等でMapScreenが破棄されると
+    // 破棄済みStateに setState が飛んで「setState() called after dispose()」で落ちる。
+    _stonesSub =
+        FirebaseFirestore.instance.collection('stones').snapshots().listen((snap) {
       _latestDocs = snap.docs;
       _buildMarkers(_latestDocs);
     });
   }
 
   void _buildMarkers(List<DocumentSnapshot> docs) {
+    if (!mounted) return;
     final markers = <Marker>{};
     for (final doc in docs) {
       try {
