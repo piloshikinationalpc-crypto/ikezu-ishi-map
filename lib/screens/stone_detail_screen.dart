@@ -127,6 +127,9 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
     if (pickedFiles.isEmpty) return;
 
     setState(() => _photoUploading = true);
+    // 途中で失敗したときに消すため、アップロード済みの分を控えておく。
+    // 消さずに放置すると、どこからも参照されない画像がStorageに溜まり続けて課金だけ増える。
+    final uploaded = <Reference>[];
     try {
       final dir = await getTemporaryDirectory();
       final newUrls = <String>[];
@@ -146,13 +149,22 @@ class _StoneDetailScreenState extends State<StoneDetailScreen> {
             .ref()
             .child('stones/${DateTime.now().millisecondsSinceEpoch}_${newUrls.length}.jpg');
         await ref.putFile(uploadFile);
+        uploaded.add(ref);
         newUrls.add(await ref.getDownloadURL());
       }
 
       await FirebaseFirestore.instance.collection('stones').doc(_stone.id).update({
         'imageUrls': FieldValue.arrayUnion(newUrls),
       });
+      uploaded.clear(); // Firestoreまで通ったので後始末は不要
     } catch (e) {
+      for (final ref in uploaded) {
+        try {
+          await ref.delete();
+        } catch (_) {
+          // 消せなくても追加失敗の通知は出す
+        }
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('エラー: $e')),

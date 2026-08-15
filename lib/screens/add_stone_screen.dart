@@ -145,6 +145,9 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
 
     setState(() => _isLoading = true);
 
+    // 途中で失敗したときに消すため、アップロード済みの分を控えておく。
+    // 消さずに放置すると、どこからも参照されない画像がStorageに溜まり続けて課金だけ増える。
+    final uploaded = <Reference>[];
     try {
       final imageUrls = <String>[];
       for (final file in _imageFiles) {
@@ -153,6 +156,7 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
             .ref()
             .child('stones/${DateTime.now().millisecondsSinceEpoch}_${imageUrls.length}.jpg');
         await ref.putFile(compressed);
+        uploaded.add(ref);
         imageUrls.add(await ref.getDownloadURL());
       }
 
@@ -176,8 +180,16 @@ class _AddStoneScreenState extends State<AddStoneScreen> {
         'isExisting': _isExisting,
       });
 
+      uploaded.clear(); // Firestoreまで通ったので後始末は不要
       if (mounted) Navigator.pop(context);
     } catch (e) {
+      for (final ref in uploaded) {
+        try {
+          await ref.delete();
+        } catch (_) {
+          // 消せなくても登録失敗の通知は出す
+        }
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('エラー: $e')),
