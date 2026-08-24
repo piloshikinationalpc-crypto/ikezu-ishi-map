@@ -3,8 +3,9 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.CAMERA"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+    <!-- 写真の選択は Android Photo Picker（image_picker）に任せるため、
+         READ_MEDIA_IMAGES / READ_EXTERNAL_STORAGE は宣言しない。
+         広範なメディア権限は Google Play の写真と動画の権限ポリシーに抵触する。 -->
 
     <application
         android:label="いけず石マップ"
