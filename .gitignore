@@ -45,3 +45,6 @@ app.*.map.json
 /android/app/release
 
 android/app/*.jks
+
+# Firebase CLI のデプロイキャッシュ（ローカル生成物。追跡するとrebaseのたびに衝突する）
+.firebase/
